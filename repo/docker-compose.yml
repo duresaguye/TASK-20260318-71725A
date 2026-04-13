@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: medical
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medical"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/medical
+      REQUIRE_HTTPS: "true"
+      EXPOSE_RESET_TOKEN: "false"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      SENSITIVE_DATA_KEY: ${SENSITIVE_DATA_KEY:?SENSITIVE_DATA_KEY is required}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_COMPRESS: "true"
+      ATTACHMENT_STORAGE_ROOT: /var/lib/medical_platform/attachments
+      BACKUP_ROOT: /var/lib/medical_platform/backups
+    volumes:
+      - attachment_data:/var/lib/medical_platform/attachments
+      - backup_data:/var/lib/medical_platform/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    environment:
+      NGINX_SERVER_NAME: localhost
+    ports:
+      - "443:443"
+    volumes:
+      - nginx_certs:/etc/nginx/certs
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  attachment_data:
+  backup_data:
+  nginx_certs:
