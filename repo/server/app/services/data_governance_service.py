@@ -597,7 +597,7 @@ class DataGovernanceService:
         if isinstance(value, datetime):
             return value.isoformat()
         if isinstance(value, Decimal):
-            return float(value)
+            return str(value)
         return value
 
     @staticmethod
@@ -661,6 +661,8 @@ class DataGovernanceService:
             return UUID(str(value))
         if expected_type is datetime:
             return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if expected_type is Decimal:
+            return Decimal(str(value))
         return value
 
     @staticmethod

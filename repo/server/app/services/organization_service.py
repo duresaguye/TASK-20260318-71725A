@@ -173,6 +173,20 @@ class OrganizationService:
             )
 
         normalized_role = ensure_valid_role(role_data.role)
+        if current_user.id == target_user.id and normalized_role != "administrator":
+            other_admin_exists = db.scalar(
+                select(User.id).where(
+                    User.organization_id == org_id,
+                    User.id != current_user.id,
+                    User.role.in_(["admin", "administrator"]),
+                )
+            )
+            if other_admin_exists is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Organization must retain at least one administrator",
+                )
+
         target_user.role = normalized_role
         DataGovernanceService.create_version_snapshot(
             db=db,
